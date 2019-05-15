@@ -1,46 +1,43 @@
 const { query } = require("stardog");
 const express = require("express");
-const stardogConn = require("../database/config");
-const { getUserRecommendationsQuery } = require("../database/queries");
+const { executeQuery } = require("../database/config");
+const {
+  getUserRecommendationsQuery,
+  getUsersRatesQuery
+} = require("../database/queries");
+
+const { mapOwlResult } = require("../utils/owlMapper");
 
 const router = express.Router();
 
-const fetchRecommendations = async userId => {
-  const { body } = await query.execute(
-    stardogConn,
-    "ERS",
-    getUserRecommendationsQuery(userId),
-    "application/sparql-results+json",
-    {
-      limit: 10,
-      offset: 0,
-      reasoning: true
-    }
-  );
-
+const fetchByQuery = async query => {
+  const { body } = await executeQuery(query);
   return body.results.bindings;
 };
 
-const mapRecommendation = rec => {
-  return Object.entries(rec)
-    .map(([key, value]) => ({
-      [key]: value.value
-    }))
-    .reduce((obj, item) => {
-      const [key, value] = Object.entries(item)[0];
-      obj[key] = value;
-      return obj;
-    }, {});
+const getContentBasedRecommendations = async userId => {
+  const recommendations = await fetchByQuery(
+    getUserRecommendationsQuery(userId)
+  );
+
+  return recommendations.map(mapOwlResult);
 };
 
-const getContentBasedRecommendations = async userInfo => {
-  const recommendations = await fetchRecommendations(userInfo.id);
+const getUsersRates = async userId => {
+  const rates = await fetchByQuery(getUsersRatesQuery(userId));
 
-  return recommendations.map(mapRecommendation);
+  return rates.map(mapOwlResult);
+};
+
+const getRecommendations = async userInfo => {
+  const recommendations = await getContentBasedRecommendations(userInfo.id);
+  const usersRates = await getUsersRates(userInfo.id);
+
+  return usersRates;
 };
 
 router.post("/", async (req, res) => {
-  const result = await getContentBasedRecommendations(req.body);
+  const result = await getRecommendations(req.body);
   return res.send(result);
 });
 
