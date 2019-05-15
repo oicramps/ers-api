@@ -1,31 +1,15 @@
 const { query } = require("stardog");
 const express = require("express");
-const stardogConn = require("../database");
+const stardogConn = require("../database/config");
+const { getUserRecommendationsQuery } = require("../database/queries");
 
 const router = express.Router();
 
-const getUserRecommendationsQuery = userInfo => {
-  return `
-        SELECT DISTINCT ?name ?overall ?latitude ?longitude WHERE {
-        ?user ers:id "${userInfo.id}"^^xsd:long .
-        ?user rdf:type ?types .
-        ?types rdfs:subClassOf ers:Recommendations.
-        ?establishments rdf:type ?types.
-
-        FILTER (?types NOT IN (ers:Recommendations)) .
-        FILTER EXISTS {?establishments rdf:type ers:Establishment}.
-        ?establishments ers:name ?name .
-        ?establishments ers:latitude ?latitude .
-        ?establishments ers:longitude ?longitude .
-        ?establishments ers:overallRating ?overall .
-    }`;
-};
-
-const getContentBasedRecommendations = async () => {
-  return query.execute(
+const fetchRecommendations = async userId => {
+  const { body } = await query.execute(
     stardogConn,
     "ERS",
-    getUserRecommendationsQuery({ id: 701020243312004 }),
+    getUserRecommendationsQuery(userId),
     "application/sparql-results+json",
     {
       limit: 10,
@@ -33,11 +17,31 @@ const getContentBasedRecommendations = async () => {
       reasoning: true
     }
   );
+
+  return body.results.bindings;
+};
+
+const mapRecommendation = rec => {
+  return Object.entries(rec)
+    .map(([key, value]) => ({
+      [key]: value.value
+    }))
+    .reduce((obj, item) => {
+      const [key, value] = Object.entries(item)[0];
+      obj[key] = value;
+      return obj;
+    }, {});
+};
+
+const getContentBasedRecommendations = async userInfo => {
+  const recommendations = await fetchRecommendations(userInfo.id);
+
+  return recommendations.map(mapRecommendation);
 };
 
 router.post("/", async (req, res) => {
-  const { body } = await getContentBasedRecommendations();
-  return res.send(body.results.bindings);
+  const result = await getContentBasedRecommendations(req.body);
+  return res.send(result);
 });
 
 module.exports = app => app.use("/recommendation", router);
