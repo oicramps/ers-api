@@ -26,7 +26,10 @@ const getContentBasedRecommendations = async userId => {
 const getUsersRates = async userId => {
   const rates = await fetchByQuery(getUsersRatesQuery(userId));
 
-  return rates.map(mapOwlResult);
+  return rates.map(mapOwlResult).map(rec => ({
+    ...rec,
+    rate: Math.floor(Math.random() * 5) + 1
+  }));
 };
 
 const getRecommendations = async userInfo => {
