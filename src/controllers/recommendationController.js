@@ -5,6 +5,7 @@ const {
   getUserRecommendationsQuery,
   getUsersRatesQuery
 } = require("../database/queries");
+const { groupBy } = require("../utils/collectionHelper");
 
 const { mapOwlResult } = require("../utils/owlMapper");
 
@@ -25,11 +26,18 @@ const getContentBasedRecommendations = async userId => {
 
 const getUsersRates = async userId => {
   const rates = await fetchByQuery(getUsersRatesQuery(userId));
-
-  return rates.map(mapOwlResult).map(rec => ({
+  const mappedRates = rates.map(mapOwlResult).map(rec => ({
     ...rec,
     rate: Math.floor(Math.random() * 5) + 1
   }));
+
+  return groupBy(
+    mappedRates.map(rec => ({
+      user_id: rec.user_id,
+      [rec.est_id]: rec.rate
+    })),
+    "user_id"
+  );
 };
 
 const getRecommendations = async userInfo => {
