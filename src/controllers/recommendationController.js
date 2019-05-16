@@ -1,4 +1,3 @@
-const { query } = require("stardog");
 const express = require("express");
 const { executeQuery } = require("../database/config");
 const {
@@ -6,6 +5,9 @@ const {
   getUsersRatesQuery
 } = require("../database/queries");
 const { groupBy } = require("../utils/collectionHelper");
+const {
+  compareUsers
+} = require("../controllers/collaborativeFilteringController");
 
 const { mapOwlResult } = require("../utils/owlMapper");
 
@@ -31,13 +33,20 @@ const getUsersRates = async userId => {
     rate: Math.floor(Math.random() * 5) + 1
   }));
 
-  return groupBy(
+  const groupedRates = groupBy(
     mappedRates.map(rec => ({
       user_id: rec.user_id,
       [rec.est_id]: rec.rate
     })),
     "user_id"
   );
+
+  console.log(
+    "s",
+    compareUsers(groupedRates, 701020243312004, 702545658988558)
+  );
+
+  return groupedRates;
 };
 
 const getRecommendations = async userInfo => {
