@@ -65,7 +65,7 @@ const getRecommendations = async userInfo => {
   const recommendations = await getContentBasedRecommendations(userInfo.id);
   const usersRates = await getUsersRates(userInfo.id);
 
-  return usersRates;
+  return { recommendations, usersRates };
 };
 
 router.post("/", async (req, res) => {

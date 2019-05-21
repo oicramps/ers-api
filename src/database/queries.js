@@ -1,6 +1,6 @@
 const getUserRecommendationsQuery = userId => {
   return `
-    SELECT DISTINCT ?id ?name ?overall ?latitude ?longitude WHERE {
+      SELECT DISTINCT ?name ?overall ?rating ?checkins ?priceRange ?latitude ?longitude WHERE {
         ?user ers:id "${userId}"^^xsd:long .
         ?user rdf:type ?types .
         ?types rdfs:subClassOf ers:Recommendations.
@@ -8,12 +8,14 @@ const getUserRecommendationsQuery = userId => {
 
         FILTER (?types NOT IN (ers:Recommendations)) .
         FILTER EXISTS {?establishments rdf:type ers:Establishment}.
-        ?establishments ers:id ?id .
         ?establishments ers:name ?name .
         ?establishments ers:latitude ?latitude .
         ?establishments ers:longitude ?longitude .
         ?establishments ers:overallRating ?overall .
-      }
+        ?establishments ers:ratingCount ?rating .
+        ?establishments ers:checkins ?checkins .
+        ?establishments ers:priceRange ?priceRange
+    }
   `;
 };
 
