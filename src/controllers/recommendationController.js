@@ -6,7 +6,8 @@ const {
 } = require("../database/queries");
 const { groupBy } = require("../utils/collectionHelper");
 const {
-  compareUsers
+  pearsonCorrelationComparation,
+  euclideanDistanceComparation
 } = require("../controllers/collaborativeFilteringController");
 
 const { mapOwlResult } = require("../utils/owlMapper");
@@ -33,17 +34,28 @@ const getUsersRates = async userId => {
     rate: Math.floor(Math.random() * 5) + 1
   }));
 
-  const groupedRates = groupBy(
-    mappedRates.map(rec => ({
-      user_id: rec.user_id,
-      [rec.est_id]: rec.rate
-    })),
-    "user_id"
+  const groupedRates = mappedRates.reduce((acc, obj) => {
+    acc[obj.user_id] = { ...acc[obj.user_id], [obj.est_id]: obj.rate };
+
+    return acc;
+  }, {});
+
+  console.log(
+    "Euclidean",
+    euclideanDistanceComparation(
+      groupedRates,
+      "705458669845005",
+      "1787728101455094"
+    )
   );
 
   console.log(
-    "s",
-    compareUsers(groupedRates, 701020243312004, 702545658988558)
+    "Person",
+    pearsonCorrelationComparation(
+      groupedRates,
+      "705458669845005",
+      "1787728101455094"
+    )
   );
 
   return groupedRates;
