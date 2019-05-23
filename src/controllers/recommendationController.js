@@ -26,17 +26,14 @@ const getContentBasedRecommendations = async ({
     getUserRecommendationsQuery(userId)
   );
 
-  return recommendations
-    .map(mapOwlResult)
-    .map(rec => ({
-      ...rec,
-      weight: getContentBasedRecommendationWeight(rec),
-      distance: getDistance(
-        { latitude, longitude },
-        { latitude: rec.latitude, longitude: rec.longitude }
-      )
-    }))
-    .sort((a, b) => b.weight - a.weight);
+  return recommendations.map(mapOwlResult).map(rec => ({
+    ...rec,
+    weight: getContentBasedRecommendationWeight(rec),
+    distance: getDistance(
+      { latitude, longitude },
+      { latitude: rec.latitude, longitude: rec.longitude }
+    )
+  }));
 };
 
 const getUsersRates = async userId => {
@@ -67,36 +64,48 @@ const getContentBasedRecommendationWeight = ({
       (parseFloat(rating) + parseFloat(likes) + parseFloat(checkins)) / 100
   );
 
+const changeWeightWithEuclideanDistance = (
+  key,
+  value,
+  contentBasedRecommendations,
+  usersRates,
+  userId
+) => {
+  const euclideanDistance = euclideanDistanceComparation(
+    usersRates,
+    userId.toString(),
+    key.toString()
+  );
+  if (euclideanDistance !== 0) {
+    contentBasedRecommendations.forEach(rec => {
+      if (Object.keys(value).includes(rec.id)) {
+        rec.basedOnUser = key;
+        rec.weight = rec.weight / (1 - euclideanDistance);
+      }
+    });
+  }
+};
+
 const generateRankedRecommendations = (
-  userId,
+  { id: userId, radius },
   contentBasedRecommendations,
   usersRates
 ) => {
-  let rankedRecommendations = [];
-
   Object.entries(usersRates)
     .filter(([key]) => key.toString() !== userId.toString())
-    .forEach(([key, value]) => {
-      const euclideanDistance = euclideanDistanceComparation(
+    .forEach(([key, value]) =>
+      changeWeightWithEuclideanDistance(
+        key,
+        value,
+        contentBasedRecommendations,
         usersRates,
-        userId.toString(),
-        key.toString()
-      );
+        userId
+      )
+    );
 
-      if (euclideanDistance !== 0) {
-        rankedRecommendations = contentBasedRecommendations.map(rec =>
-          Object.keys(value).includes(rec.id)
-            ? {
-                ...rec,
-                basedOnUser: key,
-                weight: rec.weight / (1 - euclideanDistance)
-              }
-            : rec
-        );
-      }
-    });
-
-  return rankedRecommendations.sort((a, b) => b.weight - a.weight);
+  return contentBasedRecommendations
+    .filter(rec => !radius || rec.distance <= radius)
+    .sort((a, b) => b.weight - a.weight);
 };
 
 const getRecommendations = async userInfo => {
@@ -105,7 +114,7 @@ const getRecommendations = async userInfo => {
   );
   const usersRates = await getUsersRates(userInfo.id);
   const recommendations = await generateRankedRecommendations(
-    userInfo.id,
+    userInfo,
     contentBasedRecommendations,
     usersRates
   );
