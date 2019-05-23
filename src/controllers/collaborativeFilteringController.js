@@ -39,15 +39,23 @@ const euclideanDistanceComparation = (dataset, p1, p2) => {
 
   let euclideanDistSum = [];
 
-  for (item in dataset[p1]) {
-    if (item in dataset[p2]) {
-      euclideanDistSum.push(Math.pow(dataset[p1][item] - dataset[p2][item], 2));
-    }
+  Object.entries(dataset[p1]).forEach(([establishmentId, rate]) => {
+    if (dataset[p2].hasOwnProperty(establishmentId))
+      euclideanDistSum.push(Math.pow(rate - dataset[p2][establishmentId], 2));
+  });
 
-    const sum = euclideanDistSum.reduce((acc, value) => acc + value, 0);
+  return euclideanDistSum.length
+    ? 1 /
+        (1 + Math.sqrt(euclideanDistSum.reduce((acc, value) => acc + value, 0)))
+    : 0;
+};
 
-    return 1 / (1 + Math.sqrt(sum));
+var len = function(obj) {
+  var len = 0;
+  for (var i in obj) {
+    len++;
   }
+  return len;
 };
 
 module.exports = {

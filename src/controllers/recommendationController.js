@@ -4,13 +4,11 @@ const {
   getUserRecommendationsQuery,
   getUsersRatesQuery
 } = require("../database/queries");
-const { groupBy } = require("../utils/collectionHelper");
 const {
-  pearsonCorrelationComparation,
   euclideanDistanceComparation
 } = require("../controllers/collaborativeFilteringController");
-
 const { mapOwlResult } = require("../utils/owlMapper");
+const { getDistance } = require("geolib");
 
 const router = express.Router();
 
@@ -19,12 +17,26 @@ const fetchByQuery = async query => {
   return body.results.bindings;
 };
 
-const getContentBasedRecommendations = async userId => {
+const getContentBasedRecommendations = async ({
+  id: userId,
+  latitude,
+  longitude
+}) => {
   const recommendations = await fetchByQuery(
     getUserRecommendationsQuery(userId)
   );
 
-  return recommendations.map(mapOwlResult);
+  return recommendations
+    .map(mapOwlResult)
+    .map(rec => ({
+      ...rec,
+      weight: getContentBasedRecommendationWeight(rec),
+      distance: getDistance(
+        { latitude, longitude },
+        { latitude: rec.latitude, longitude: rec.longitude }
+      )
+    }))
+    .sort((a, b) => b.weight - a.weight);
 };
 
 const getUsersRates = async userId => {
@@ -40,32 +52,67 @@ const getUsersRates = async userId => {
     return acc;
   }, {});
 
-  console.log(
-    "Euclidean",
-    euclideanDistanceComparation(
-      groupedRates,
-      "705458669845005",
-      "1787728101455094"
-    )
-  );
-
-  console.log(
-    "Person",
-    pearsonCorrelationComparation(
-      groupedRates,
-      "705458669845005",
-      "1787728101455094"
-    )
-  );
-
   return groupedRates;
 };
 
-const getRecommendations = async userInfo => {
-  const recommendations = await getContentBasedRecommendations(userInfo.id);
-  const usersRates = await getUsersRates(userInfo.id);
+const getContentBasedRecommendationWeight = ({
+  rating,
+  overall,
+  likes,
+  checkins
+}) =>
+  1 / 1 +
+  Math.sqrt(
+    parseFloat(overall) * 200 +
+      (parseFloat(rating) + parseFloat(likes) + parseFloat(checkins)) / 100
+  );
 
-  return { recommendations, usersRates };
+const generateRankedRecommendations = (
+  userId,
+  contentBasedRecommendations,
+  usersRates
+) => {
+  let rankedRecommendations = [];
+
+  Object.entries(usersRates)
+    .filter(([key]) => key.toString() !== userId.toString())
+    .forEach(([key, value]) => {
+      const euclideanDistance = euclideanDistanceComparation(
+        usersRates,
+        userId.toString(),
+        key.toString()
+      );
+
+      if (euclideanDistance !== 0) {
+        rankedRecommendations = contentBasedRecommendations.map(rec =>
+          Object.keys(value).includes(rec.id)
+            ? {
+                ...rec,
+                basedOnUser: key,
+                weight: rec.weight / (1 - euclideanDistance)
+              }
+            : rec
+        );
+      }
+    });
+
+  return rankedRecommendations.sort((a, b) => b.weight - a.weight);
+};
+
+const getRecommendations = async userInfo => {
+  const contentBasedRecommendations = await getContentBasedRecommendations(
+    userInfo
+  );
+  const usersRates = await getUsersRates(userInfo.id);
+  const recommendations = await generateRankedRecommendations(
+    userInfo.id,
+    contentBasedRecommendations,
+    usersRates
+  );
+
+  return {
+    recommendations
+  };
 };
 
 router.post("/", async (req, res) => {
