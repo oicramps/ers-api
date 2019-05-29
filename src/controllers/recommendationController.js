@@ -1,40 +1,13 @@
 const express = require("express");
-const { executeQuery } = require("../database/config");
-const {
-  getUserRecommendationsQuery,
-  getUsersRatesQuery
-} = require("../database/queries");
+const { getUsersRatesQuery } = require("../database/queries");
+const getContentBasedRecommendations = require("./contentBasedRecommendationController");
 const {
   euclideanDistanceComparation
 } = require("../controllers/collaborativeFilteringController");
 const { mapOwlResult } = require("../utils/owlMapper");
-const { getDistance } = require("geolib");
+const fetchByQuery = require("./databaseController");
 
 const router = express.Router();
-
-const fetchByQuery = async query => {
-  const { body } = await executeQuery(query);
-  return body.results.bindings;
-};
-
-const getContentBasedRecommendations = async ({
-  id: userId,
-  latitude,
-  longitude
-}) => {
-  const recommendations = await fetchByQuery(
-    getUserRecommendationsQuery(userId)
-  );
-
-  return recommendations.map(mapOwlResult).map(rec => ({
-    ...rec,
-    weight: getContentBasedRecommendationWeight(rec),
-    distance: getDistance(
-      { latitude, longitude },
-      { latitude: rec.latitude, longitude: rec.longitude }
-    )
-  }));
-};
 
 const getUsersRates = async userId => {
   const rates = await fetchByQuery(getUsersRatesQuery(userId));
@@ -51,18 +24,6 @@ const getUsersRates = async userId => {
 
   return groupedRates;
 };
-
-const getContentBasedRecommendationWeight = ({
-  rating,
-  overall,
-  likes,
-  checkins
-}) =>
-  1 / 1 +
-  Math.sqrt(
-    parseFloat(overall) * 200 +
-      (parseFloat(rating) + parseFloat(likes) + parseFloat(checkins)) / 100
-  );
 
 const changeWeightWithEuclideanDistance = (
   key,

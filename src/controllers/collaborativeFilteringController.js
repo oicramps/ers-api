@@ -50,14 +50,6 @@ const euclideanDistanceComparation = (dataset, p1, p2) => {
     : 0;
 };
 
-var len = function(obj) {
-  var len = 0;
-  for (var i in obj) {
-    len++;
-  }
-  return len;
-};
-
 module.exports = {
   pearsonCorrelationComparation,
   euclideanDistanceComparation

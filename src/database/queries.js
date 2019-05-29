@@ -21,7 +21,7 @@ const getUserRecommendationsQuery = userId => {
   `;
 };
 
-const getUsersRatesQuery = userId => {
+const getUsersRatesQuery = () => {
   return `
     SELECT DISTINCT ?user_id ?est_id WHERE {
         ?user rdf:type ers:User .
@@ -34,4 +34,19 @@ const getUsersRatesQuery = userId => {
   `;
 };
 
-module.exports = { getUserRecommendationsQuery, getUsersRatesQuery };
+const getUserCheckinsQuery = userId => {
+  return ` 
+    SELECT DISTINCT ?id  WHERE {
+        ?user ers:id "${userId}"^^xsd:long .
+        ?establishment rdf:type ?types.
+        ?user ers:hasCheckedIn ?checkedInEstablishment .
+        ?checkedInEstablishment ers:id ?id
+    }
+  `;
+};
+
+module.exports = {
+  getUserRecommendationsQuery,
+  getUsersRatesQuery,
+  getUserCheckinsQuery
+};
