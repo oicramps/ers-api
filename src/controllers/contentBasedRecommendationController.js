@@ -1,7 +1,8 @@
 const fetchByQuery = require("./databaseController");
 const {
   getUserRecommendationsQuery,
-  getUserCheckinsQuery
+  getUserCheckinsQuery,
+  getEstablishmentsByIds
 } = require("../database/queries");
 const { mapOwlResult } = require("../utils/owlMapper");
 const { getDistance } = require("geolib");
@@ -18,8 +19,26 @@ const getContentBasedRecommendationWeight = ({
       (parseFloat(rating) + parseFloat(likes) + parseFloat(checkins)) / 100
   );
 
-const filterNotCheckedIn = (recommendation, checkins) =>
+const filterNotCheckedIn = (recommendation, checkins = []) =>
   !checkins.includes(recommendation.id);
+
+const mapEstablishmentRecommendations = (
+  recommendations,
+  checkins,
+  latitude,
+  longitude
+) =>
+  recommendations
+    .map(mapOwlResult)
+    .filter(rec => !checkins || filterNotCheckedIn(rec, checkins))
+    .map(rec => ({
+      ...rec,
+      weight: getContentBasedRecommendationWeight(rec),
+      distance: getDistance(
+        { latitude, longitude },
+        { latitude: rec.latitude, longitude: rec.longitude }
+      )
+    }));
 
 const getContentBasedRecommendations = async ({
   id: userId,
@@ -34,17 +53,31 @@ const getContentBasedRecommendations = async ({
     .map(mapOwlResult)
     .map(checkin => checkin.id);
 
-  return recommendations
-    .map(mapOwlResult)
-    .filter(rec => filterNotCheckedIn(rec, checkins))
-    .map(rec => ({
-      ...rec,
-      weight: getContentBasedRecommendationWeight(rec),
-      distance: getDistance(
-        { latitude, longitude },
-        { latitude: rec.latitude, longitude: rec.longitude }
-      )
-    }));
+  return mapEstablishmentRecommendations(
+    recommendations,
+    checkins,
+    latitude,
+    longitude
+  );
 };
 
-module.exports = getContentBasedRecommendations;
+const getEstablishmentRecommendationsByIds = async (
+  establishmentIds,
+  { latitude, longitude }
+) => {
+  const establishments = await fetchByQuery(
+    getEstablishmentsByIds(establishmentIds)
+  );
+
+  return mapEstablishmentRecommendations(
+    establishments,
+    null,
+    latitude,
+    longitude
+  );
+};
+
+module.exports = {
+  getContentBasedRecommendations,
+  getEstablishmentRecommendationsByIds
+};

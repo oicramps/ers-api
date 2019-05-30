@@ -1,38 +1,9 @@
-const getObjectLength = obj => Object.keys(obj).length;
-
-const pearsonCorrelationComparation = (dataset, p1, p2) => {
-  const bothExisists = {};
-
-  for (item in dataset[p1]) {
-    if (item in dataset[p2]) {
-      bothExisists[item] = 1;
-    }
-  }
-  var num_existence = getObjectLength(bothExisists);
-  if (num_existence == 0) return 0;
-  var p1_sum = 0,
-    p2_sum = 0,
-    p1_sq_sum = 0,
-    p2_sq_sum = 0,
-    prod_p1p2 = 0;
-
-  for (var item in bothExisists) {
-    p1_sum += dataset[p1][item];
-    p2_sum += dataset[p2][item];
-    p1_sq_sum += Math.pow(dataset[p1][item], 2);
-    p2_sq_sum += Math.pow(dataset[p2][item], 2);
-    prod_p1p2 += dataset[p1][item] * dataset[p2][item];
-  }
-  var numerator = prod_p1p2 - (p1_sum * p2_sum) / num_existence;
-  var st1 = p1_sq_sum - Math.pow(p1_sum, 2) / num_existence;
-  var st2 = p2_sq_sum - Math.pow(p2_sum, 2) / num_existence;
-  var denominator = Math.sqrt(st1 * st2);
-  if (denominator == 0) return 0;
-  else {
-    var val = numerator / denominator;
-    return val;
-  }
-};
+const { getUsersRatesQuery } = require("../database/queries");
+const {
+  getEstablishmentRecommendationsByIds
+} = require("./contentBasedRecommendationController");
+const { mapOwlResult } = require("../utils/owlMapper");
+const fetchByQuery = require("./databaseController");
 
 const euclideanDistanceComparation = (dataset, p1, p2) => {
   if (![p1, p2].every(item => dataset[item])) return 0;
@@ -50,7 +21,86 @@ const euclideanDistanceComparation = (dataset, p1, p2) => {
     : 0;
 };
 
+const getUsersRates = async userId => {
+  const rates = await fetchByQuery(getUsersRatesQuery(userId));
+  const mappedRates = rates.map(mapOwlResult).map(rec => ({
+    ...rec,
+    rate: Math.floor(Math.random() * 5) + 1
+  }));
+
+  const groupedRates = mappedRates.reduce((acc, obj) => {
+    acc[obj.user_id] = { ...acc[obj.user_id], [obj.est_id]: obj.rate };
+
+    return acc;
+  }, {});
+
+  return groupedRates;
+};
+
+const getEsblishmentsToRecommend = async (
+  otherUserId,
+  otherUserRatings,
+  contentBasedRecommendations,
+  usersRates,
+  currentUserInfo
+) => {
+  const usersDistance = euclideanDistanceComparation(
+    usersRates,
+    currentUserInfo.id.toString(),
+    otherUserId.toString()
+  );
+
+  if (usersDistance !== 0) {
+    const estIds = [];
+
+    await Object.entries(otherUserRatings).forEach(([estId, estRate]) => {
+      if (
+        contentBasedRecommendations.every(rec => rec.id.toString() !== estId) &&
+        estRate >= 3
+      ) {
+        estIds.push(estId);
+      }
+    });
+
+    const collaborativeFilteringRecommendations = (await getEstablishmentRecommendationsByIds(
+      estIds,
+      currentUserInfo
+    )).map(rec => ({
+      ...rec,
+      basedOnUser: otherUserId,
+      weight: rec.weight / (1 - usersDistance)
+    }));
+
+    return [...collaborativeFilteringRecommendations];
+  }
+  return [];
+};
+
+const getCollaborativeFilteringRecommendations = async (
+  userInfo,
+  contentBasedRecommendations
+) => {
+  const usersRates = await getUsersRates(userInfo.id);
+
+  const recommendations = await Promise.all(
+    Object.entries(usersRates)
+      .filter(
+        ([otherUserId]) => otherUserId.toString() !== userInfo.id.toString()
+      )
+      .map(([otherUserId, otherUserRatings]) =>
+        getEsblishmentsToRecommend(
+          otherUserId,
+          otherUserRatings,
+          contentBasedRecommendations,
+          usersRates,
+          userInfo
+        )
+      )
+  );
+
+  return recommendations.reduce((acc, array) => [...acc, ...array], []);
+};
+
 module.exports = {
-  pearsonCorrelationComparation,
-  euclideanDistanceComparation
+  getCollaborativeFilteringRecommendations
 };

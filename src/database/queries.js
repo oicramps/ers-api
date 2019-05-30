@@ -1,7 +1,9 @@
+const getFormattedLong = long => `"${long}"^^xsd:long`;
+
 const getUserRecommendationsQuery = userId => {
   return `
       SELECT DISTINCT ?id ?name ?overall ?rating ?checkins ?likes ?priceRange ?latitude ?longitude WHERE {
-        ?user ers:id "${userId}"^^xsd:long .
+        ?user ers:id ${getFormattedLong(userId)} .
         ?user rdf:type ?types .
         ?types rdfs:subClassOf ers:Recommendations.
         ?establishments rdf:type ?types.
@@ -37,7 +39,7 @@ const getUsersRatesQuery = () => {
 const getUserCheckinsQuery = userId => {
   return ` 
     SELECT DISTINCT ?id  WHERE {
-        ?user ers:id "${userId}"^^xsd:long .
+        ?user ers:id ${getFormattedLong(userId)} .
         ?establishment rdf:type ?types.
         ?user ers:hasCheckedIn ?checkedInEstablishment .
         ?checkedInEstablishment ers:id ?id
@@ -45,8 +47,28 @@ const getUserCheckinsQuery = userId => {
   `;
 };
 
+const getEstablishmentsByIds = ids => {
+  return `
+    SELECT DISTINCT ?id ?name ?overall ?rating ?likes ?checkins ?priceRange ?latitude ?longitude WHERE {
+      
+      ?establishment ers:id ?id .
+
+      FILTER (?id IN (${ids.map(getFormattedLong).join(", ")})) .
+
+      ?establishment ers:name ?name .
+      ?establishment ers:latitude ?latitude .
+      ?establishment ers:longitude ?longitude .
+      ?establishment ers:overallRating ?overall .
+      ?establishment ers:ratingCount ?rating .
+      ?establishment ers:checkins ?checkins .
+      ?establishment ers:priceRange ?priceRange .
+      ?establishment ers:engagementCount ?likes . 
+  }`;
+};
+
 module.exports = {
   getUserRecommendationsQuery,
   getUsersRatesQuery,
-  getUserCheckinsQuery
+  getUserCheckinsQuery,
+  getEstablishmentsByIds
 };
