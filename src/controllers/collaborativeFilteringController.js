@@ -38,6 +38,15 @@ const getUsersRates = async userId => {
   return groupedRates;
 };
 
+const mapRecommendation = (recommendation, userId, usersDistance) => ({
+  ...recommendation,
+  basedOn: [
+    ...(recommendation.basedOn || []),
+    { userId, similarity: usersDistance * 100 }
+  ],
+  weight: recommendation.weight * 1.5
+});
+
 const getEsblishmentsToRecommend = async (
   otherUserId,
   otherUserRatings,
@@ -53,27 +62,36 @@ const getEsblishmentsToRecommend = async (
 
   if (usersDistance !== 0) {
     const estIds = [];
+    let collaborativeFilteringRecommendations = [];
 
     await Object.entries(otherUserRatings).forEach(([estId, estRate]) => {
-      if (
-        contentBasedRecommendations.every(rec => rec.id.toString() !== estId) &&
-        estRate >= 3
-      ) {
-        estIds.push(estId);
+      if (estRate >= 3) {
+        const index = contentBasedRecommendations.findIndex(
+          rec => rec.id.toString() === estId.toString()
+        );
+
+        if (index !== -1) {
+          collaborativeFilteringRecommendations.push(
+            mapRecommendation(
+              contentBasedRecommendations[index],
+              otherUserId,
+              usersDistance
+            )
+          );
+          contentBasedRecommendations.splice(index, 1);
+        } else {
+          estIds.push(estId);
+        }
       }
     });
 
-    const collaborativeFilteringRecommendations = (await getEstablishmentRecommendationsByIds(
-      estIds,
-      currentUserInfo
-    )).map(rec => ({
-      ...rec,
-      basedOn: [
-        ...(rec.basedOn || []),
-        { userId: otherUserId, similarity: usersDistance * 100 }
-      ],
-      weight: rec.weight * 1.5
-    }));
+    collaborativeFilteringRecommendations = [
+      ...collaborativeFilteringRecommendations,
+      ...(await getEstablishmentRecommendationsByIds(
+        estIds,
+        currentUserInfo
+      )).map(rec => mapRecommendation(rec, otherUserId, usersDistance))
+    ];
 
     return [...collaborativeFilteringRecommendations];
   }
@@ -116,7 +134,7 @@ const getCollaborativeFilteringRecommendations = async (
       if (index !== -1) {
         rec.basedOn = [...rec.basedOn, ...uRec.basedOn];
         rec.weight = (rec.weight + uRec.weight) / 2;
-        uniqueCollaborativeRecommendations.splice(index, 0, rec);
+        uniqueCollaborativeRecommendations.splice(index, 1, rec);
       } else uniqueCollaborativeRecommendations.push(rec);
     });
 
