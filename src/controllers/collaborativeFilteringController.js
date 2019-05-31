@@ -4,6 +4,7 @@ const {
 } = require("./contentBasedRecommendationController");
 const { mapOwlResult } = require("../utils/owlMapper");
 const fetchByQuery = require("./databaseController");
+var usersRates = require("../database/rates.json");
 
 const euclideanDistanceComparation = (dataset, p1, p2) => {
   if (![p1, p2].every(item => dataset[item])) return 0;
@@ -25,7 +26,7 @@ const getUsersRates = async userId => {
   const rates = await fetchByQuery(getUsersRatesQuery(userId));
   const mappedRates = rates.map(mapOwlResult).map(rec => ({
     ...rec,
-    rate: Math.floor(Math.random() * 5) + 1
+    rate: usersRates[rec.user_id][rec.est_id]
   }));
 
   const groupedRates = mappedRates.reduce((acc, obj) => {
@@ -67,8 +68,11 @@ const getEsblishmentsToRecommend = async (
       currentUserInfo
     )).map(rec => ({
       ...rec,
-      basedOnUser: otherUserId,
-      weight: rec.weight / (1 - usersDistance)
+      basedOn: [
+        ...(rec.basedOn || []),
+        { userId: otherUserId, similarity: usersDistance * 100 }
+      ],
+      weight: rec.weight * 1.5
     }));
 
     return [...collaborativeFilteringRecommendations];
@@ -82,7 +86,7 @@ const getCollaborativeFilteringRecommendations = async (
 ) => {
   const usersRates = await getUsersRates(userInfo.id);
 
-  const recommendations = await Promise.all(
+  const collaborativeRecommendations = await Promise.all(
     Object.entries(usersRates)
       .filter(
         ([otherUserId]) => otherUserId.toString() !== userInfo.id.toString()
@@ -98,7 +102,25 @@ const getCollaborativeFilteringRecommendations = async (
       )
   );
 
-  return recommendations.reduce((acc, array) => [...acc, ...array], []);
+  const uniqueCollaborativeRecommendations = [];
+
+  collaborativeRecommendations
+    .reduce((acc, array) => [...acc, ...array], [])
+    .forEach(rec => {
+      const index = uniqueCollaborativeRecommendations.findIndex(
+        uRec => uRec.id.toString() === rec.id.toString()
+      );
+
+      const uRec = uniqueCollaborativeRecommendations[index];
+
+      if (index !== -1) {
+        rec.basedOn = [...rec.basedOn, ...uRec.basedOn];
+        rec.weight = (rec.weight + uRec.weight) / 2;
+        uniqueCollaborativeRecommendations.splice(index, 0, rec);
+      } else uniqueCollaborativeRecommendations.push(rec);
+    });
+
+  return uniqueCollaborativeRecommendations;
 };
 
 module.exports = {
