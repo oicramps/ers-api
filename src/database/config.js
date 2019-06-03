@@ -9,7 +9,7 @@ const connection = new Connection({
 const executeQuery = sparqlQuery =>
   query.execute(
     connection,
-    "ERS",
+    "ERS-KD",
     sparqlQuery,
     "application/sparql-results+json",
     {

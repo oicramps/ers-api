@@ -2,23 +2,24 @@ const getFormattedLong = long => `"${long}"^^xsd:long`;
 
 const getUserRecommendationsQuery = userId => {
   return `
-      SELECT DISTINCT ?id ?name ?overall ?rating ?checkins ?likes ?priceRange ?latitude ?longitude WHERE {
+      SELECT DISTINCT ?id ?name ?overall ?rating ?checkins ?likes ?priceRange ?latitude ?longitude ?workPeriod WHERE {
         ?user ers:id ${getFormattedLong(userId)} .
         ?user rdf:type ?types .
         ?types rdfs:subClassOf ers:Recommendations.
-        ?establishments rdf:type ?types.
+        ?establishment rdf:type ?types.
 
         FILTER (?types NOT IN (ers:Recommendations)) .
-        FILTER EXISTS {?establishments rdf:type ers:Establishment}.
-        ?establishments ers:id ?id .
-        ?establishments ers:name ?name .
-        ?establishments ers:latitude ?latitude .
-        ?establishments ers:longitude ?longitude .
-        ?establishments ers:overallRating ?overall .
-        ?establishments ers:ratingCount ?rating .
-        ?establishments ers:checkins ?checkins .
-        ?establishments ers:priceRange ?priceRange .
-        ?establishments ers:engagementCount ?likes
+        FILTER EXISTS {?establishment rdf:type ers:Establishment}.
+        ?establishment ers:id ?id .
+        ?establishment ers:name ?name .
+        ?establishment ers:latitude ?latitude .
+        ?establishment ers:longitude ?longitude .
+        ?establishment ers:overallRating ?overall .
+        ?establishment ers:ratingCount ?rating .
+        ?establishment ers:checkins ?checkins .
+        ?establishment ers:priceRange ?priceRange .
+        ?establishment ers:engagementCount ?likes .
+        ?establishment ers:workPeriod ?workPeriod .
     }
   `;
 };
@@ -49,7 +50,7 @@ const getUserCheckinsQuery = userId => {
 
 const getEstablishmentsByIds = ids => {
   return `
-    SELECT DISTINCT ?id ?name ?overall ?rating ?likes ?checkins ?priceRange ?latitude ?longitude WHERE {
+    SELECT DISTINCT ?id ?name ?overall ?rating ?likes ?checkins ?priceRange ?latitude ?longitude ?workPeriod WHERE {
       
       ?establishment ers:id ?id .
 
@@ -63,6 +64,7 @@ const getEstablishmentsByIds = ids => {
       ?establishment ers:checkins ?checkins .
       ?establishment ers:priceRange ?priceRange .
       ?establishment ers:engagementCount ?likes . 
+      ?establishment ers:workPeriod ?workPeriod .
   }`;
 };
 
