@@ -1,12 +1,9 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const dotEnv = require("dotenv");
 const recommendationController = require("./controllers/recommendationController");
+const { port } = require("./config/environment");
 
 const app = express();
-dotEnv.config();
-
-const port = process.env.PORT || 3030;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));

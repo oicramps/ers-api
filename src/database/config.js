@@ -1,19 +1,25 @@
 const { Connection, query } = require("stardog");
+const {
+  stardogUrl,
+  stardogUser,
+  stardogPassword,
+  stardogDbName
+} = require("../config/environment");
 
 const connection = new Connection({
-  username: "admin",
-  password: "admin",
-  endpoint: "http://localhost:5820"
+  username: stardogUser,
+  password: stardogPassword,
+  endpoint: stardogUrl
 });
 
 const executeQuery = sparqlQuery =>
   query.execute(
     connection,
-    "ERS-KD",
+    stardogDbName,
     sparqlQuery,
     "application/sparql-results+json",
     {
-      limit: 100,
+      limit: 200,
       offset: 0,
       reasoning: true
     }
