@@ -33,11 +33,17 @@ const getRecommendations = async userInfo => {
     contentBasedRecommendations
   );
 
+  const filteredRecommendations = await filterRecommendationsByContext(
+    userInfo,
+    recommendations
+  );
+
   return {
-    recommendations: await filterRecommendationsByContext(
-      userInfo,
-      recommendations
-    )
+    recommendations: filteredRecommendations,
+    count: {
+      content: filteredRecommendations.filter(rec => !rec.basedOn).length,
+      collaborative: filteredRecommendations.filter(rec => !!rec.basedOn).length
+    }
   };
 };
 

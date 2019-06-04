@@ -46,6 +46,25 @@ const getUsersRatesQuery = () => {
   `;
 };
 
+const getUserFriendsRatesQuery = userId => {
+  return `
+    SELECT DISTINCT ?user_id ?est_id WHERE {
+      {
+          ?user ers:id "${userId}"^^xsd:long .
+          ?user ers:isFriendOf ?friend .
+          ?friend ers:id ?user_id .
+          ?friend ers:rated ?rates .
+          ?rates ers:id ?est_id .
+      } UNION {
+          ?user ers:id "${userId}"^^xsd:long .
+          ?user ers:id ?user_id .
+          ?user ers:rated ?rates .
+          ?rates ers:id ?est_id .
+      }
+    }  
+  `;
+};
+
 const getUserCheckinsQuery = userId => {
   return ` 
     SELECT DISTINCT ?id  WHERE {
@@ -82,6 +101,7 @@ const getUserCheckins = userId => {
 module.exports = {
   getUserRecommendationsQuery,
   getUsersRatesQuery,
+  getUserFriendsRatesQuery,
   getUserCheckinsQuery,
   getEstablishmentsByIds,
   getUserCheckins
