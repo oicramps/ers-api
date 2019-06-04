@@ -69,9 +69,20 @@ const getEstablishmentsByIds = ids => {
   }`;
 };
 
+const getUserCheckins = userId => {
+  return `
+    SELECT DISTINCT ?id  WHERE {
+      ?user ers:id "${userId}"^^xsd:long .
+      ?user ers:hasCheckedIn ?establishment .
+
+      ?establishment ers:id ?id .
+    }`;
+};
+
 module.exports = {
   getUserRecommendationsQuery,
   getUsersRatesQuery,
   getUserCheckinsQuery,
-  getEstablishmentsByIds
+  getEstablishmentsByIds,
+  getUserCheckins
 };

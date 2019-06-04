@@ -1,6 +1,9 @@
 const axios = require("axios");
 const moment = require("moment");
 const { hereApiUrl, hereAppId, hereAppCode } = require("../config/environment");
+const { getUserCheckins } = require("../database/queries");
+const fetchByQuery = require("./databaseController");
+const { mapOwlResult } = require("../utils/owlMapper");
 
 const periodConstants = {
   MORNING: "morning",
@@ -43,6 +46,11 @@ const getWorkPeriodByTime = time => {
 
 const filterRecommendationsByContext = async (userInfo, recommendations) => {
   const isRaining = await getCurrentWeather(userInfo);
+  const userCheckins = (await fetchByQuery(getUserCheckins(userInfo.id)))
+    .map(mapOwlResult)
+    .map(checkin => checkin.id);
+
+  const filterAlreadyCheckedIn = rec => !userCheckins.includes(rec.id);
 
   const filterByDistance = rec =>
     !userInfo.radius || rec.distance <= userInfo.radius;
@@ -55,6 +63,7 @@ const filterRecommendationsByContext = async (userInfo, recommendations) => {
     );
 
   return recommendations
+    .filter(filterAlreadyCheckedIn)
     .filter(filterByDistance)
     .filter(filterByWeather)
     .filter(filterByTime);
