@@ -1,8 +1,26 @@
 const getFormattedLong = long => `"${long}"^^xsd:long`;
 
+const ESTABLISHMENT_QUERY_RESULTS =
+  "SELECT DISTINCT ?id ?name ?overall ?rating ?checkins ?likes ?priceRange ?latitude ?longitude ?workPeriod ?hasIndoorPlace ?hasOutdoorPlace ";
+
+const ESTABLISHMENT_QUERY_FIELDS = `
+  ?establishment ers:id ?id .
+  ?establishment ers:name ?name .
+  ?establishment ers:latitude ?latitude .
+  ?establishment ers:longitude ?longitude .
+  ?establishment ers:overallRating ?overall .
+  ?establishment ers:ratingCount ?rating .
+  ?establishment ers:checkins ?checkins .
+  ?establishment ers:priceRange ?priceRange .
+  ?establishment ers:engagementCount ?likes . 
+  ?establishment ers:workPeriod ?workPeriod .
+  optional { ?establishment ers:hasIndoorPlace ?hasIndoorPlace } .
+  optional { ?establishment ers:hasOutdoorPlace ?hasOutdoorPlace } .
+`;
+
 const getUserRecommendationsQuery = userId => {
   return `
-      SELECT DISTINCT ?id ?name ?overall ?rating ?checkins ?likes ?priceRange ?latitude ?longitude ?workPeriod WHERE {
+      ${ESTABLISHMENT_QUERY_RESULTS} WHERE {
         ?user ers:id ${getFormattedLong(userId)} .
         ?user rdf:type ?types .
         ?types rdfs:subClassOf ers:Recommendations.
@@ -10,16 +28,7 @@ const getUserRecommendationsQuery = userId => {
 
         FILTER (?types NOT IN (ers:Recommendations)) .
         FILTER EXISTS {?establishment rdf:type ers:Establishment}.
-        ?establishment ers:id ?id .
-        ?establishment ers:name ?name .
-        ?establishment ers:latitude ?latitude .
-        ?establishment ers:longitude ?longitude .
-        ?establishment ers:overallRating ?overall .
-        ?establishment ers:ratingCount ?rating .
-        ?establishment ers:checkins ?checkins .
-        ?establishment ers:priceRange ?priceRange .
-        ?establishment ers:engagementCount ?likes .
-        ?establishment ers:workPeriod ?workPeriod .
+        ${ESTABLISHMENT_QUERY_FIELDS}
     }
   `;
 };
@@ -50,21 +59,13 @@ const getUserCheckinsQuery = userId => {
 
 const getEstablishmentsByIds = ids => {
   return `
-    SELECT DISTINCT ?id ?name ?overall ?rating ?likes ?checkins ?priceRange ?latitude ?longitude ?workPeriod WHERE {
+    ${ESTABLISHMENT_QUERY_RESULTS} WHERE {
       
       ?establishment ers:id ?id .
 
       FILTER (?id IN (${ids.map(getFormattedLong).join(", ")})) .
 
-      ?establishment ers:name ?name .
-      ?establishment ers:latitude ?latitude .
-      ?establishment ers:longitude ?longitude .
-      ?establishment ers:overallRating ?overall .
-      ?establishment ers:ratingCount ?rating .
-      ?establishment ers:checkins ?checkins .
-      ?establishment ers:priceRange ?priceRange .
-      ?establishment ers:engagementCount ?likes . 
-      ?establishment ers:workPeriod ?workPeriod .
+      ${ESTABLISHMENT_QUERY_FIELDS}
   }`;
 };
 

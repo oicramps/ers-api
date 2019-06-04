@@ -4,7 +4,8 @@ const {
 } = require("./contentBasedRecommendationController");
 const {
   getCollaborativeFilteringRecommendations
-} = require("../controllers/collaborativeFilteringController");
+} = require("./collaborativeFilteringController");
+const { filterRecommendationsByContext } = require("./contextController");
 
 const router = express.Router();
 
@@ -20,9 +21,7 @@ const generateRankedRecommendations = async (
   return [
     ...contentBasedRecommendations,
     ...collaborativeFilteringRecommendations
-  ]
-    .filter(rec => !userInfo.radius || rec.distance <= userInfo.radius)
-    .sort((a, b) => b.weight - a.weight);
+  ].sort((a, b) => b.weight - a.weight);
 };
 
 const getRecommendations = async userInfo => {
@@ -35,7 +34,10 @@ const getRecommendations = async userInfo => {
   );
 
   return {
-    recommendations
+    recommendations: await filterRecommendationsByContext(
+      userInfo,
+      recommendations
+    )
   };
 };
 
